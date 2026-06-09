@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InterCoin</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      background: #161b22;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+    }
+    
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .title h1 {
+      font-size: 24px;
+      margin: 0;
+    }
+    
+    .accent { color: #f97316; }
+    
+    .header-right {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    
+    button {
+      background: #f97316;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      padding: 20px;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+    
+    .card:hover {
+      border-color: #f97316;
+      box-shadow: 0 0 20px rgba(249, 115, 22, 0.15);
+    }
+    
+    .card-top {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    
+    .logo { width: 50px; height: 50px; border-radius: 50%; }
+    
+    .coin-name { font-size: 18px; font-weight: bold; }
+    .coin-symbol { font-size: 12px; color: #8b949e; }
+    
+    .price {
+      font-size: 28px;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    
+    .stat {
+      background: #0d1117;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+    }
+    
+    .stat-label {
+      font-size: 11px;
+      color: #8b949e;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+    
+    .stat-value {
+      font-weight: bold;
+      font-size: 14px;
+    }
+    
+    .change-up { color: #22c55e; background: rgba(34, 197, 94, 0.15); padding: 3px 8px; border-radius: 4px; }
+    .change-down { color: #ef4444; background: rgba(239, 68, 68, 0.15); padding: 3px 8px; border-radius: 4px; }
+    
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      font-size: 18px;
+    }
+    
+    .spinner {
+      display: inline-block;
+      font-size: 32px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid #ef4444;
+      color: #ef4444;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">
+      <span style="font-size: 32px;">🪙</span>
+      <div>
+        <h1>Inter<span class="accent">Coin</span></h1>
+        <div style="font-size: 11px; color: #8b949e;">MERCADO CRIPTO</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span id="hora" style="font-size: 12px; color: #8b949e;">🕐 --:--:--</span>
+      <button id="btn" onclick="buscar()">↺ Atualizar</button>
+    </div>
+  </div>
+
+  <div id="conteudo" class="loading">
+    <div class="spinner">⟳</div>
+    <div style="margin-top: 15px;">Carregando...</div>
+  </div>
+
+  <script>
+    let carregando = false;
+
+    function formatarUSD(n) {
+      if (!n) return "$0.00";
+      return "$" + parseFloat(n).toFixed(2);
+    }
+
+    function atualizarHora() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('hora').textContent = `🕐 ${h}:${m}:${s}`;
+    }
+
+    async function buscar() {
+      if (carregando) return;
+      carregando = true;
+
+      const btn = document.getElementById('btn');
+      const div = document.getElementById('conteudo');
+
+      btn.disabled = true;
+      btn.textContent = '⟳ Atualizando...';
+      div.innerHTML = '<div class="loading"><div class="spinner">⟳</div><div style="margin-top: 15px;">Carregando moedas...</div></div>';
+
+      try {
+        const url = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana,tether&order=market_cap_desc';
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+        const dados = await res.json();
+        if (!dados || dados.length === 0) throw new Error('Sem dados');
+
+        atualizarHora();
+
+        let html = '<div class="grid">';
+
+        for (let m of dados) {
+          const p24 = m.price_change_percentage_24h || 0;
+          const ok = p24 >= 0 ? 'change-up' : 'change-down';
+          const seta = p24 >= 0 ? '▲' : '▼';
+
+          html += `
+            <div class="card">
+              <div class="card-top">
+                <img src="${m.image}" class="logo" />
+                <div>
+                  <div class="coin-name">${m.name}</div>
+                  <div class="coin-symbol">${m.symbol.toUpperCase()}</div>
+                </div>
+              </div>
+              <div class="price">${formatarUSD(m.current_price)}</div>
+              <div class="stats">
+                <div class="stat">
+                  <div class="stat-label">Ranking</div>
+                  <div class="stat-value">#${m.market_cap_rank}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">24h</div>
+                  <div class="stat-value"><span class="${ok}">${seta} ${Math.abs(p24).toFixed(2)}%</span></div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Market Cap</div>
+                  <div class="stat-value">${formatarUSD(m.market_cap)}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Volume 24h</div>
+                  <div class="stat-value">${formatarUSD(m.total_volume)}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Mín 24h</div>
+                  <div class="stat-value">${formatarUSD(m.low_24h)}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Máx 24h</div>
+                  <div class="stat-value">${formatarUSD(m.high_24h)}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        html += '</div>';
+        div.innerHTML = html;
+
+      } catch (erro) {
+        console.error(erro);
+        div.innerHTML = '<div class="error"><strong>⚠️ Erro:</strong> ' + erro.message + '</div>';
+      }
+
+      btn.disabled = false;
+      btn.textContent = '↺ Atualizar';
+      carregando = false;
+    }
+
+    // Iniciar
+    window.onload = function() {
+      buscar();
+      atualizarHora();
+      setInterval(atualizarHora, 1000);
+      setInterval(buscar, 60000);
+    };
+  </script>
+</body>
+</html>
